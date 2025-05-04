@@ -62,7 +62,8 @@ const TopUsers: React.FC = () => {
             </Typography>
             <Grid container spacing={3}>
                 {users.map((user) => (
-                    <Grid key={user.userId} xs={12} sm={6} md={4}>
+
+                    <Grid key={user.userId} item component="div" xs={12} sm={6} md={4}>
                         <Card>
                             <CardContent>
                                 <Box display="flex" alignItems="center" mb={2}>

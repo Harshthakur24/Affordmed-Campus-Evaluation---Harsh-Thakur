@@ -1,9 +1,6 @@
 import React from 'react';
 import { AppBar, Toolbar, Typography, Button, Box } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
-import PeopleIcon from '@mui/icons-material/People';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import FeedIcon from '@mui/icons-material/Feed';
 
 const Navigation: React.FC = () => {
     return (
@@ -13,28 +10,13 @@ const Navigation: React.FC = () => {
                     Social Media Analytics
                 </Typography>
                 <Box>
-                    <Button
-                        color="inherit"
-                        component={RouterLink}
-                        to="/"
-                        startIcon={<PeopleIcon />}
-                    >
+                    <Button color="inherit" component={RouterLink} to="/">
                         Top Users
                     </Button>
-                    <Button
-                        color="inherit"
-                        component={RouterLink}
-                        to="/trending"
-                        startIcon={<TrendingUpIcon />}
-                    >
+                    <Button color="inherit" component={RouterLink} to="/trending">
                         Trending Posts
                     </Button>
-                    <Button
-                        color="inherit"
-                        component={RouterLink}
-                        to="/feed"
-                        startIcon={<FeedIcon />}
-                    >
+                    <Button color="inherit" component={RouterLink} to="/feed">
                         Feed
                     </Button>
                 </Box>

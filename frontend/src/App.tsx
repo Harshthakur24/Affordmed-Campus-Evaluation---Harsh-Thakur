@@ -1,11 +1,10 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
+import { Container, CssBaseline, ThemeProvider, createTheme } from '@mui/material';
+import Navigation from './components/Navigation';
 import TopUsers from './pages/TopUsers';
 import TrendingPosts from './pages/TrendingPosts';
 import Feed from './pages/Feed';
-import Navigation from './components/Navigation';
 
 const theme = createTheme({
     palette: {
@@ -19,20 +18,22 @@ const theme = createTheme({
     },
 });
 
-function App() {
+const App: React.FC = () => {
     return (
         <ThemeProvider theme={theme}>
             <CssBaseline />
             <Router>
                 <Navigation />
-                <Routes>
-                    <Route path="/" element={<TopUsers />} />
-                    <Route path="/trending" element={<TrendingPosts />} />
-                    <Route path="/feed" element={<Feed />} />
-                </Routes>
+                <Container maxWidth="lg" sx={{ mt: 4 }}>
+                    <Routes>
+                        <Route path="/" element={<TopUsers />} />
+                        <Route path="/trending" element={<TrendingPosts />} />
+                        <Route path="/feed" element={<Feed />} />
+                    </Routes>
+                </Container>
             </Router>
         </ThemeProvider>
     );
-}
+};
 
 export default App; 

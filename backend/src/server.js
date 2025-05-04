@@ -1,140 +1,93 @@
 const express = require('express');
 const axios = require('axios');
-const cors = require('cors');
-require('dotenv').config();
 
 const app = express();
-const port = process.env.PORT || 5000;
+const port = 8000;
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+// Replace this with your actual token
+const AUTH_TOKEN = 'Bearer <your_token_here>';
 
-// Constants
-const BASE_URL = 'http://20.244.56.144/evaluation-service';
+// Test server base URL
+const BASE_URL = 'http://20.244.56.144/test';
 
-// Cache for storing user and post data
-let userCache = new Map();
-let postCache = new Map();
-let commentCache = new Map();
-
-// Helper function to fetch users
-async function fetchUsers() {
-    try {
-        const response = await axios.get(`${BASE_URL}/users`);
-        return response.data.users;
-    } catch (error) {
-        console.error('Error fetching users:', error);
-        throw error;
-    }
-}
-
-// Helper function to fetch posts for a user
-async function fetchUserPosts(userId) {
-    try {
-        const response = await axios.get(`${BASE_URL}/users/${userId}/posts`);
-        return response.data.posts;
-    } catch (error) {
-        console.error(`Error fetching posts for user ${userId}:`, error);
-        throw error;
-    }
-}
-
-// Helper function to fetch comments for a post
-async function fetchPostComments(postId) {
-    try {
-        const response = await axios.get(`${BASE_URL}/posts/${postId}/comments`);
-        return response.data.comments;
-    } catch (error) {
-        console.error(`Error fetching comments for post ${postId}:`, error);
-        throw error;
-    }
-}
-
-// API Endpoint: Get top users with most commented posts
-app.get('/users', async (req, res) => {
-    try {
-        const users = await fetchUsers();
-        const userCommentCounts = new Map();
-
-        // Fetch posts and comments for each user
-        for (const [userId, userName] of Object.entries(users)) {
-            const posts = await fetchUserPosts(userId);
-            let totalComments = 0;
-
-            for (const post of posts) {
-                const comments = await fetchPostComments(post.id);
-                totalComments += comments.length;
-            }
-
-            userCommentCounts.set(userId, {
-                name: userName,
-                commentCount: totalComments
-            });
-        }
-
-        // Sort users by comment count and get top 5
-        const topUsers = Array.from(userCommentCounts.entries())
-            .sort((a, b) => b[1].commentCount - a[1].commentCount)
-            .slice(0, 5)
-            .map(([userId, data]) => ({
-                userId,
-                name: data.name,
-                commentCount: data.commentCount
-            }));
-
-        res.json(topUsers);
-    } catch (error) {
-        res.status(500).json({ error: 'Internal server error' });
-    }
+// Axios instance with headers
+const api = axios.create({
+  baseURL: BASE_URL,
+  headers: {
+    Authorization: AUTH_TOKEN,
+  },
 });
 
-// API Endpoint: Get top/latest posts
-app.get('/posts', async (req, res) => {
-    try {
-        const { type } = req.query;
-        const users = await fetchUsers();
-        let allPosts = [];
+// Fetch companies
+const getCompanies = async () => {
+  const response = await api.get('/companies');
+  return response.data;
+};
 
-        // Fetch all posts from all users
-        for (const userId of Object.keys(users)) {
-            const posts = await fetchUserPosts(userId);
-            allPosts = allPosts.concat(posts);
-        }
+// Fetch users for a company
+const getUsersByCompany = async (companyId) => {
+  const response = await api.get(`/companies/${companyId}/users`);
+  return response.data;
+};
 
-        if (type === 'popular') {
-            // Get comment counts for all posts
-            const postCommentCounts = new Map();
-            for (const post of allPosts) {
-                const comments = await fetchPostComments(post.id);
-                postCommentCounts.set(post.id, {
-                    ...post,
-                    commentCount: comments.length
-                });
-            }
+// Fetch posts by user
+const getPostsByUser = async (userId) => {
+  const response = await api.get(`/users/${userId}/posts`);
+  return response.data;
+};
 
-            // Find posts with maximum comments
-            const maxComments = Math.max(...Array.from(postCommentCounts.values()).map(p => p.commentCount));
-            const popularPosts = Array.from(postCommentCounts.values())
-                .filter(post => post.commentCount === maxComments);
+// Fetch comments by post
+const getCommentsByPost = async (postId) => {
+  const response = await api.get(`/posts/${postId}/comments`);
+  return response.data;
+};
 
-            res.json(popularPosts);
-        } else if (type === 'latest') {
-            // Sort posts by ID (assuming higher IDs are newer)
-            const latestPosts = allPosts
-                .sort((a, b) => b.id - a.id)
-                .slice(0, 5);
+// Main route
+app.get('/top-companies', async (req, res) => {
+  try {
+    const companies = await getCompanies();
+    const companyStats = [];
 
-            res.json(latestPosts);
-        } else {
-            res.status(400).json({ error: 'Invalid type parameter' });
-        }
-    } catch (error) {
-        res.status(500).json({ error: 'Internal server error' });
+    for (const company of companies) {
+      const users = await getUsersByCompany(company.id);
+      let totalComments = 0;
+      let totalPosts = 0;
+
+      // Fetch posts & comments for each user
+      await Promise.all(users.map(async (user) => {
+        const posts = await getPostsByUser(user.id);
+        totalPosts += posts.length;
+
+        const commentsCounts = await Promise.all(
+          posts.map(async (post) => {
+            const comments = await getCommentsByPost(post.id);
+            return comments.length;
+          })
+        );
+
+        totalComments += commentsCounts.reduce((acc, val) => acc + val, 0);
+      }));
+
+      const avgComments = totalPosts ? totalComments / totalPosts : 0;
+
+      companyStats.push({
+        companyId: company.id,
+        companyName: company.name,
+        avgCommentsPerPost: Number(avgComments.toFixed(2)),
+      });
     }
+
+    // Sort by average descending
+    companyStats.sort((a, b) => b.avgCommentsPerPost - a.avgCommentsPerPost);
+
+    res.json(companyStats);
+  } catch (error) {
+    console.error('Error:', error.message);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 });
 
 // Start server
 app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
-}); 
+  console.log(`Server running at http://localhost:${port}`);
+});
