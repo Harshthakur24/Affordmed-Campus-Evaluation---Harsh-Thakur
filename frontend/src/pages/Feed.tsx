@@ -6,15 +6,21 @@ import {
     CardContent,
     CardHeader,
     Avatar,
+    Grid,
     Box,
     CircularProgress,
+    Alert,
+    Chip,
+    Divider,
 } from '@mui/material';
-import axios from 'axios';
+import { AccessTime as AccessTimeIcon, Comment as CommentIcon } from '@mui/icons-material';
 
 interface Post {
     id: number;
-    userid: string;
-    content: string;
+    title: string;
+    body: string;
+    userId: number;
+    commentsCount: number;
 }
 
 const Feed: React.FC = () => {
@@ -25,26 +31,33 @@ const Feed: React.FC = () => {
     useEffect(() => {
         const fetchLatestPosts = async () => {
             try {
-                const response = await axios.get('http://localhost:5000/posts?type=latest');
-                setPosts(response.data);
-                setLoading(false);
+                const response = await fetch('http://localhost:5000/posts?type=latest');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch latest posts');
+                }
+                const data = await response.json();
+                setPosts(data);
             } catch (err) {
-                setError('Failed to fetch latest posts');
+                setError(err instanceof Error ? err.message : 'An error occurred');
+            } finally {
                 setLoading(false);
             }
         };
 
         fetchLatestPosts();
-
-        // Set up polling for new posts every 30 seconds
-        const interval = setInterval(fetchLatestPosts, 30000);
+        const interval = setInterval(fetchLatestPosts, 30000); // Refresh every 30 seconds
 
         return () => clearInterval(interval);
     }, []);
 
     if (loading) {
         return (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
+            <Box
+                display="flex"
+                justifyContent="center"
+                alignItems="center"
+                minHeight="60vh"
+            >
                 <CircularProgress />
             </Box>
         );
@@ -52,34 +65,69 @@ const Feed: React.FC = () => {
 
     if (error) {
         return (
-            <Container>
-                <Typography color="error" variant="h6">
-                    {error}
-                </Typography>
+            <Container maxWidth="md" sx={{ mt: 4 }}>
+                <Alert severity="error">{error}</Alert>
             </Container>
         );
     }
 
     return (
-        <Container maxWidth="lg" sx={{ mt: 4 }}>
-            <Typography variant="h4" component="h1" gutterBottom>
-                Latest Posts
-            </Typography>
-            {posts.map((post) => (
-                <Card key={post.id} sx={{ mb: 3 }}>
-                    <CardHeader
-                        avatar={
-                            <Avatar sx={{ bgcolor: 'primary.main' }}>
-                                {post.userid.charAt(0)}
-                            </Avatar>
-                        }
-                        title={`User ${post.userid}`}
-                    />
-                    <CardContent>
-                        <Typography variant="body1">{post.content}</Typography>
-                    </CardContent>
-                </Card>
-            ))}
+        <Container maxWidth="lg">
+            <Box sx={{ mb: 4 }}>
+                <Typography variant="h4" component="h1" gutterBottom>
+                    Latest Posts
+                </Typography>
+                <Typography variant="subtitle1" color="text.secondary">
+                    Real-time updates every 30 seconds
+                </Typography>
+            </Box>
+
+            <Grid container spacing={3}>
+                {posts.map((post) => (
+                    <Grid item xs={12} key={post.id}>
+                        <Card>
+                            <CardHeader
+                                avatar={
+                                    <Avatar
+                                        sx={{
+                                            bgcolor: (theme) => theme.palette.primary.main,
+                                            width: 40,
+                                            height: 40,
+                                        }}
+                                    >
+                                        {post.userId.toString().charAt(0)}
+                                    </Avatar>
+                                }
+                                title={
+                                    <Typography variant="h6" component="div">
+                                        {post.title}
+                                    </Typography>
+                                }
+                                subheader={
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <AccessTimeIcon color="primary" fontSize="small" />
+                                        <Typography variant="body2" color="text.secondary">
+                                            Just now
+                                        </Typography>
+                                    </Box>
+                                }
+                            />
+                            <Divider />
+                            <CardContent>
+                                <Typography variant="body1" paragraph>
+                                    {post.body}
+                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <CommentIcon color="primary" fontSize="small" />
+                                    <Typography variant="body2" color="text.secondary">
+                                        {post.commentsCount} comments
+                                    </Typography>
+                                </Box>
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                ))}
+            </Grid>
         </Container>
     );
 };
